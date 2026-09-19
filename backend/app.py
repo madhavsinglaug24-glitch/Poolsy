@@ -141,20 +141,18 @@ migration_done = False
 def auto_migrate():
     global migration_done
     if not migration_done:
-        try:
-            with db.engine.connect() as conn:
-                try:
-                    conn.execute(db.text("ALTER TABLE pool_payments ADD COLUMN category VARCHAR(50) DEFAULT 'Other'"))
-                except: pass
-                try:
-                    conn.execute(db.text("ALTER TABLE pool_payments ADD COLUMN description VARCHAR(255)"))
-                except: pass
-                try:
-                    conn.execute(db.text("ALTER TABLE pool_payments ADD COLUMN participants_json TEXT"))
-                except: pass
-                conn.commit()
-        except Exception as e:
-            print(f"Auto-migration failed: {e}")
+        queries = [
+            "ALTER TABLE pool_payments ADD COLUMN category VARCHAR(50) DEFAULT 'Other'",
+            "ALTER TABLE pool_payments ADD COLUMN description VARCHAR(255)",
+            "ALTER TABLE pool_payments ADD COLUMN participants_json TEXT"
+        ]
+        for q in queries:
+            try:
+                with db.engine.connect() as conn:
+                    conn.execute(db.text(q))
+                    conn.commit()
+            except Exception as e:
+                pass
         migration_done = True
 
 # ----------------- HEALTH ENDPOINT ----------------- #
