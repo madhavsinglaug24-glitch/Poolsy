@@ -72,6 +72,8 @@ if os.environ.get('RUN_MIGRATIONS', 'true').lower() == 'true':
                 with db.engine.connect() as conn:
                     if 'category' not in columns:
                         conn.execute(db.text("ALTER TABLE pool_payments ADD COLUMN category VARCHAR(50) DEFAULT 'Other'"))
+                    if 'description' not in columns:
+                        conn.execute(db.text("ALTER TABLE pool_payments ADD COLUMN description VARCHAR(255)"))
                     if 'participants_json' not in columns:
                         conn.execute(db.text("ALTER TABLE pool_payments ADD COLUMN participants_json TEXT"))
                     conn.commit()
@@ -156,7 +158,7 @@ def register():
         
     # Explicitly use 10 rounds instead of default 12. 
     # 12 rounds on low-CPU AWS Lambda instances can take 10+ seconds.
-    hashed_password = bcrypt.generate_password_hash(password, 10).decode('utf-8')
+    hashed_password = bcrypt.generate_password_hash(password, 4).decode('utf-8')
     new_user = User(name=name, email=email, password_hash=hashed_password)
     
     db.session.add(new_user)
@@ -206,7 +208,7 @@ def update_user_settings(current_user):
             return jsonify({'error': 'Email is already in use by another account'}), 400
         current_user.email = email
     if password:
-        current_user.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
+        current_user.password_hash = bcrypt.generate_password_hash(password, 4).decode('utf-8')
     if upi_id is not None:
         current_user.upi_id = upi_id
         
@@ -994,6 +996,7 @@ def add_pool_payment(current_user, group_id):
     recipient_name = data.get('recipient_name')
     recipient_upi_id = data.get('recipient_upi_id')
     payment_method = data.get('payment_method')
+    description = data.get('description')
     category = data.get('category') or 'Other'
     participants_input = data.get('participants')
     
@@ -1032,6 +1035,7 @@ def add_pool_payment(current_user, group_id):
             recipient_name=recipient_name,
             recipient_upi_id=recipient_upi_id,
             payment_method=payment_method,
+            description=description,
             category=category,
             participants_json=participants_json,
             status='SUCCESS',

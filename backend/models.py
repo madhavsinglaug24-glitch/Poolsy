@@ -86,6 +86,7 @@ class PoolPayment(db.Model):
     recipient_name = db.Column(db.String(100), nullable=False)
     recipient_upi_id = db.Column(db.String(100), nullable=False)
     payment_method = db.Column(db.String(50), nullable=False) # 'QR' or 'UPI_ID'
+    description = db.Column(db.String(255), nullable=True)
     category = db.Column(db.String(50), default='Other')
     participants_json = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(50), default='SUCCESS')

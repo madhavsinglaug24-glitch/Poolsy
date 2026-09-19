@@ -91,6 +91,14 @@ function App() {
   // Auth state
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || 'null'));
+
+  // Pre-warm the backend (AWS Lambda cold start prevention)
+  useEffect(() => {
+    if (!token) {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+      fetch(`${apiUrl}/health`).catch(() => {});
+    }
+  }, [token]);
   
   // Auth forms
   const [isLogin, setIsLogin] = useState(true);
@@ -148,9 +156,9 @@ function App() {
 
   // Add Expense Form
   const [showExpenseModal, setShowExpenseModal] = useState(false);
-  const [expAmount, setExpAmount] = useState('');
-  const [expCategory, setExpCategory] = useState('');
-  const [expDesc, setExpDesc] = useState('');
+  const [expAmount, setExpAmount] = useState('500');
+  const [expCategory, setExpCategory] = useState('Cab');
+  const [expDesc, setExpDesc] = useState('Uber to airport');
   const [expParticipants, setExpParticipants] = useState([]);
   const [expPaidBy, setExpPaidBy] = useState('');
   const [creatingExpense, setCreatingExpense] = useState(false);
@@ -160,15 +168,17 @@ function App() {
   const [showPayPoolModal, setShowPayPoolModal] = useState(false);
   const [poolPaymentMethod, setPoolPaymentMethod] = useState('QR'); // 'QR' or 'UPI_ID'
   const [poolPaymentData, setPoolPaymentData] = useState({
-    recipient_name: '',
-    recipient_upi_id: '',
-    amount: '',
-    category: ''
+    recipient_name: 'Demo Merchant',
+    recipient_upi_id: 'merchant@upi',
+    amount: '300',
+    category: 'Dinner',
+    description: "Dinner at Domino's"
   });
   const [processingPoolPayment, setProcessingPoolPayment] = useState(false);
   const [poolPaymentError, setPoolPaymentError] = useState('');
   const [poolPaymentReceipt, setPoolPaymentReceipt] = useState(null);
   const [poolParticipants, setPoolParticipants] = useState([]);
+
 
   // Transaction Modal State
   const [showScannerModal, setShowScannerModal] = useState(false);
@@ -734,9 +744,9 @@ function App() {
         })
       });
       setShowExpenseModal(false);
-      setExpAmount('');
-      setExpCategory('');
-      setExpDesc('');
+      setExpAmount('500');
+      setExpCategory('Cab');
+      setExpDesc('Uber to airport');
       setExpParticipants([]);
       setExpPaidBy('');
       fetchGroupDetails(activeGroupId);
@@ -874,6 +884,7 @@ function App() {
           recipient_upi_id: poolPaymentData.recipient_upi_id,
           payment_method: poolPaymentMethod === 'CONFIRM_DEMO' ? 'QR' : poolPaymentMethod,
           category: poolPaymentData.category || 'Other',
+          description: poolPaymentData.description,
           participants: poolParticipants.length > 0 ? poolParticipants : (activeGroupData?.members.map(m => m.id) || [])
         })
       });
@@ -884,8 +895,14 @@ function App() {
         created_at: new Date().toISOString()
       });
       
-      // Clear form
-      setPoolPaymentData({ recipient_name: '', recipient_upi_id: '', amount: '', category: '' });
+      // Clear form back to demo defaults
+      setPoolPaymentData({ 
+        recipient_name: 'Demo Merchant', 
+        recipient_upi_id: 'merchant@upi', 
+        amount: '300', 
+        category: 'Dinner', 
+        description: "Dinner at Domino's" 
+      });
       fetchGroupDetails(activeGroupId);
       if (groupTab === 'summary') fetchGroupSummary(activeGroupId);
     } catch (err) {
@@ -1223,17 +1240,20 @@ function App() {
                          <button className="btn secondary-btn" onClick={() => setShowContributeModal(true)}>Add Money</button>
                           <button className="btn primary-btn" onClick={() => {
                             setPoolPaymentData({
-                              recipient_name: '',
-                              recipient_upi_id: '',
-                              amount: '',
-                              category: ''
+                              recipient_name: 'Demo Merchant',
+                              recipient_upi_id: 'merchant@upi',
+                              amount: '300',
+                              category: 'Dinner',
+                              description: "Dinner at Domino's"
                             });
                             setPoolPaymentMethod('QR');
                             setShowPayPoolModal(true);
                           }}>Pay from Pool</button>
                          <button className="btn secondary-btn" onClick={() => {
                            setExpParticipants(activeGroupData.members.map(m => m.id));
-                           setExpCategory('');
+                           setExpAmount('500');
+                           setExpCategory('Cab');
+                           setExpDesc('Uber to airport');
                            setExpPaidBy(user?.id || '');
                            setShowExpenseModal(true);
                          }}>Add Expense</button>
@@ -1441,7 +1461,7 @@ function App() {
                                 <div className="mb-4">
                                   <div>
                                     <h3 style={{ color: 'var(--danger)', margin: 0 }}>Settlement Pending</h3>
-                                    <p className="text-muted text-sm mt-1 mb-0">The shared pool has unresolved balances.</p>
+                                    <p className="text-muted text-sm mt-1 mb-0">The group has unresolved balances.</p>
                                   </div>
                                 </div>
                                 {(() => {
@@ -1906,6 +1926,17 @@ function App() {
                   <FormFieldError message={payPoolFieldErrors.category} id="paypool-category-error" />
                 </div>
                 
+                <div className="form-group mb-4">
+                  <label>Description</label>
+                  <input 
+                    type="text" 
+                    className="premium-input"
+                    placeholder="e.g. Dinner at Domino's"
+                    value={poolPaymentData.description}
+                    onChange={(e) => setPoolPaymentData({...poolPaymentData, description: e.target.value})}
+                  />
+                </div>
+                
                 <div className="form-group mb-6">
                   <label>Amount (₹)</label>
                   <input 
@@ -1928,7 +1959,7 @@ function App() {
                 </div>
                 
                 <div className="form-group" style={{marginBottom: '16px'}}>
-                  <label style={{marginBottom: '6px'}}>Who was this payment for? <span className="text-danger">*</span></label>
+                  <label style={{marginBottom: '6px'}}>Who was this payment for?</label>
                   <div className="participant-selection" style={{marginBottom: '0'}}>
                     {activeGroupData.members.map(m => {
                       const selectedIds = poolParticipants.length > 0 ? poolParticipants : activeGroupData.members.map(mem => mem.id);
@@ -2064,6 +2095,13 @@ function App() {
                   <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: 500 }}>Payment Type</span>
                   <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{poolPaymentReceipt.category || 'Dinner'}</span>
                 </div>
+                
+                {poolPaymentReceipt.description && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: 500 }}>Description</span>
+                    <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{poolPaymentReceipt.description}</span>
+                  </div>
+                )}
                 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: '12px' }}>
                   <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: 500 }}>Date & Time</span>
@@ -2336,6 +2374,12 @@ function App() {
                       <span className="receipt-label">Payment Type</span>
                       <span className="receipt-value" style={{ fontWeight: 600 }}>{selectedTx.category || 'Other'}</span>
                     </div>
+                    {selectedTx.description && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: '12px', marginTop: '12px' }}>
+                        <span className="receipt-label">Description</span>
+                        <span className="receipt-value">{selectedTx.description}</span>
+                      </div>
+                    )}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: '12px', marginTop: '12px' }}>
                       <span className="receipt-label">Payment Method</span>
                       <span className="receipt-value">{selectedTx.payment_method === 'QR' ? 'Scan QR' : 'UPI ID'}</span>
