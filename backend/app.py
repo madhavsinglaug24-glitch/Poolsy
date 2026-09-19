@@ -135,6 +135,28 @@ def calculate_pool_balance(group):
     pool_payments = db.session.query(db.func.coalesce(db.func.sum(PoolPayment.amount), 0)).filter_by(group_id=gid, status='SUCCESS').scalar()
     return Decimal(str(total_contributions)) + Decimal(str(settlement_deposits)) - Decimal(str(settlement_payouts)) - Decimal(str(pool_payments))
 
+migration_done = False
+
+@app.before_request
+def auto_migrate():
+    global migration_done
+    if not migration_done:
+        try:
+            with db.engine.connect() as conn:
+                try:
+                    conn.execute(db.text("ALTER TABLE pool_payments ADD COLUMN category VARCHAR(50) DEFAULT 'Other'"))
+                except: pass
+                try:
+                    conn.execute(db.text("ALTER TABLE pool_payments ADD COLUMN description VARCHAR(255)"))
+                except: pass
+                try:
+                    conn.execute(db.text("ALTER TABLE pool_payments ADD COLUMN participants_json TEXT"))
+                except: pass
+                conn.commit()
+        except Exception as e:
+            print(f"Auto-migration failed: {e}")
+        migration_done = True
+
 # ----------------- HEALTH ENDPOINT ----------------- #
 
 @app.route('/health', methods=['GET'])
