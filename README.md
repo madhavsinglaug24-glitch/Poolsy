@@ -4,7 +4,7 @@ A cloud-native expense splitting application built for groups.
 
 ## Demo
 
-[Live demo / video link here]
+https://www.youtube.com/watch?v=o085ML43GZo
 
 ## Problem
 
@@ -27,6 +27,7 @@ Poolsy is a group expense app built around two ideas: **shared expenses** and **
 - Balance and summary views
 - Settlement workflow
 - Exact decimal financial calculations (no floating-point rounding errors)
+- Mobile-first responsive design, tested on real devices (demo video shown on desktop for clarity)
 
 ## How It Works
 
